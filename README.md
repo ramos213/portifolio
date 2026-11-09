@@ -30,13 +30,27 @@ Portfolio personalizável com React, API Express e SQLite (sql.js/WASM). O site 
 
    Abra `http://localhost:5173` e acesse `/admin` para entrar no painel. O administrador é configurado pelo ambiente do servidor; não há senha padrão.
 
-## Publicação
+## Publicação na Vercel
 
-Execute `npm.cmd run build` e inicie com `npm.cmd start` no PowerShell do Windows, usando Node.js 20.9+. Configure `NODE_ENV=production`, `ADMIN_EMAIL`, uma senha `ADMIN_PASSWORD` com pelo menos 14 caracteres, `SESSION_SECRET` com pelo menos 32 caracteres, e `APP_ORIGIN` como a origem HTTPS do site. A aplicação serve os arquivos de `dist` e a API pelo mesmo servidor.
+O projeto inclui uma função serverless em `api/index.js`. Ela usa Neon Postgres para dados persistentes e Vercel Blob para imagens. A primeira solicitação cria automaticamente as tabelas necessárias.
 
-O arquivo `vercel.json` encaminha `/admin` à aplicação React para que a rota do painel não retorne um 404 da Vercel. Isso resolve apenas a navegação da interface. A API Express deste projeto foi preparada para rodar como servidor Node contínuo, e o banco SQLite e as imagens dependem de arquivos persistentes; uma publicação Vite estática na Vercel não executa esse servidor nem preserva esses arquivos. Para habilitar login, gerenciamento de conteúdo, envio de mensagens e imagens nesse provedor, é necessário hospedar a API em um serviço com armazenamento persistente ou adaptá-la a funções/serverless e a serviços gerenciados de banco e armazenamento.
+1. Na Vercel, abra o projeto `portifolio` e vá para **Storage**.
+2. Crie ou conecte um banco **Neon Postgres** ao projeto. Confirme que a integração disponibilizou `DATABASE_URL` nos ambientes **Production** e **Preview**.
+3. Crie uma loja **Vercel Blob** com acesso **público** para as fotos do portfólio. Confirme que `BLOB_READ_WRITE_TOKEN` está disponível nos mesmos ambientes.
+4. Em **Settings → Environment Variables**, adicione:
+   - `ADMIN_EMAIL`: e-mail que você usará para entrar no painel.
+   - `ADMIN_PASSWORD`: senha exclusiva, com pelo menos 14 caracteres.
+   - `SESSION_SECRET`: segredo aleatório com pelo menos 32 caracteres. Gere um com `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`.
+   - `APP_ORIGIN`: URL exata do site publicado, como `https://portifolio-seven-gilt-76.vercel.app`, sem barra no final.
+5. Selecione **Production** (e **Preview**, se desejar testar em prévias) para cada variável e salve. Não coloque esses segredos no GitHub nem os compartilhe.
+6. Abra **Deployments** e faça **Redeploy** da implantação mais recente. Um novo deploy também inicia automaticamente depois que as alterações deste projeto forem enviadas ao GitHub.
+7. Teste `https://seu-dominio.vercel.app/api/health` (deve responder `{"ok":true}`) e depois abra `https://seu-dominio.vercel.app/admin`.
 
-SQLite e imagens ficam em `data/` e `uploads/`, ou nos caminhos absolutos informados por `DATA_DIR` e `UPLOAD_DIR`. O ambiente de hospedagem precisa oferecer armazenamento persistente para esses diretórios; volumes efêmeros ou plataformas serverless sem volume persistente não preservam os dados entre reinicializações. Faça backups regulares de ambos. Fotos de perfil e projetos são convertidas para WebP e limitadas a 8 MB no envio.
+Os uploads de imagem na Vercel têm limite de 4 MB por arquivo para respeitar os limites de solicitações das funções. As imagens aceitas são convertidas para WebP e armazenadas no Blob público.
+
+## Publicação em um servidor Node.js próprio
+
+Use Node.js 20.9 ou superior, configure `NODE_ENV=production`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `SESSION_SECRET` e `APP_ORIGIN`, e execute `npm.cmd run build` seguido de `npm.cmd start`. Nesse modo, o aplicativo pode usar o SQLite e o armazenamento local nas pastas `data/` e `uploads/`; escolha uma hospedagem com disco persistente e faça backups.
 
 O formulário de contato salva as mensagens no banco de dados para consulta no painel administrativo; não envia e-mails automaticamente. Os níveis das habilidades começam em “Em aprendizado”, e projetos, instituições, cursos, certificações e experiências só aparecem após serem cadastrados no painel.
 
@@ -45,5 +59,5 @@ O formulário de contato salva as mensagens no banco de dados para consulta no p
 - Interface responsiva em português e inglês, com preferência de idioma e tema preservada no navegador.
 - Projetos, habilidades, formação, cursos, certificações e experiências editáveis e persistidos em SQLite.
 - Upload de fotos otimizado, pré-visualização e ajuste do ponto de enquadramento.
-- Painel autenticado com cookie `HttpOnly`, hash da sessão no banco, proteção `SameSite`, verificação de origem e limite de tentativas de login.
-- Mensagens de contato persistidas e administráveis pelo painel.
+- Painel autenticado com cookie `HttpOnly`, hash da sessão no banco, proteção `SameSite`, verificação de origem e limite persistente de tentativas de login.
+- Mensagens de contato persistidas em Neon e administráveis pelo painel.
